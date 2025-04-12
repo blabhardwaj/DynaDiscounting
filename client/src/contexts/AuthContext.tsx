@@ -91,11 +91,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signup = async (email: string, password: string, role: UserRole) => {
     try {
       // For demo purposes, we'll create a user with the given role
+      // Use a properly formatted ID that matches the database schema
+      const userPrefix = role === 'supplier' ? 'supplier' : 'buyer';
+      const timestamp = Date.now().toString().slice(-5); // Use last 5 digits of timestamp
+      
       const userData = {
-        id: `user_${Date.now()}`,
+        id: `${userPrefix}${timestamp}`,
         email,
         role,
       };
+      
+      // Important note: In a real app, we would make a API call to create the user in the database here
       
       // Store in localStorage
       localStorage.setItem(LOCAL_STORAGE_AUTH_KEY, JSON.stringify(userData));
