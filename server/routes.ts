@@ -73,16 +73,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid request format" });
       }
       
+      console.log("Received invoices data:", JSON.stringify(invoices, null, 2));
+      
       const processedInvoices = [];
       
       for (const csvInvoice of invoices) {
+        // Ensure the InvoiceAmount is a valid number
+        let invoiceAmount: number;
+        
+        if (typeof csvInvoice.InvoiceAmount === 'number') {
+          invoiceAmount = csvInvoice.InvoiceAmount;
+        } else if (typeof csvInvoice.InvoiceAmount === 'string') {
+          // Remove any non-numeric characters except decimal point
+          const cleanedAmount = csvInvoice.InvoiceAmount.replace(/[^0-9.]/g, '');
+          invoiceAmount = parseFloat(cleanedAmount);
+        } else {
+          throw new Error(`Invalid InvoiceAmount format for invoice ${csvInvoice.InvoiceID}`);
+        }
+        
+        if (isNaN(invoiceAmount)) {
+          throw new Error(`InvoiceAmount is not a valid number for invoice ${csvInvoice.InvoiceID}`);
+        }
+        
         const invoiceData = {
           invoiceId: csvInvoice.InvoiceID,
-          invoiceAmount: parseFloat(csvInvoice.InvoiceAmount),
+          invoiceAmount,
           invoiceDate: csvInvoice.InvoiceDate,
           dueDate: csvInvoice.DueDate,
           buyerName: csvInvoice.BuyerName,
-          status: csvInvoice.Status.toLowerCase(),
+          status: typeof csvInvoice.Status === 'string' ? csvInvoice.Status.toLowerCase() : 'pending',
           supplierId,
         };
         

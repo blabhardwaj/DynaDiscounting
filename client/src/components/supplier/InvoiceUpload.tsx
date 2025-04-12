@@ -48,7 +48,9 @@ const InvoiceUpload = () => {
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
+        dynamicTyping: true, // Try to automatically convert numeric values
         complete: async (results) => {
+          console.log("CSV parse results:", results);
           const invoices = results.data as InvoiceCSV[];
           
           // Validate CSV structure
