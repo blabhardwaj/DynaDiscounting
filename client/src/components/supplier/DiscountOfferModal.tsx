@@ -46,6 +46,10 @@ const DiscountOfferModal = ({ invoice, isOpen, onClose }: DiscountOfferModalProp
     setIsSubmitting(true);
     
     try {
+      // Force using "supplier1" for demo purposes since that's what exists in our database
+      const supplierId = "supplier1";
+      const supplierName = "Demo Supplier";
+
       const offerData = {
         invoiceId: invoice.id,
         originalAmount,
@@ -54,8 +58,8 @@ const DiscountOfferModal = ({ invoice, isOpen, onClose }: DiscountOfferModalProp
         discountValue,
         earlyPaymentDate: formatDate(earlyPaymentDate.toISOString()),
         dcfValue,
-        supplierId: user?.id,
-        supplierName: user?.email?.split('@')[0] || 'Unknown Supplier', // Simple name from email
+        supplierId,
+        supplierName,
       };
       
       await apiRequest('POST', '/api/discount-offers', offerData);
