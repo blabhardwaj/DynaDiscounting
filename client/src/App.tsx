@@ -8,6 +8,9 @@ import HomePage from "./pages/HomePage";
 import DashboardPage from "./pages/DashboardPage";
 import SupplierDashboard from "./pages/supplier/SupplierDashboard";
 import BuyerDashboard from "./pages/buyer/BuyerDashboard";
+import SupplierInvoicesPage from "./pages/supplier/SupplierInvoicesPage";
+import BuyerOffersPage from "./pages/buyer/BuyerOffersPage";
+import ReportsPage from "./pages/ReportsPage";
 import AppLayout from "./components/layout/AppLayout";
 import { useAuth } from "./contexts/AuthContext";
 
@@ -43,6 +46,27 @@ function Router() {
         {() => (
           <AppLayout>
             <PrivateRoute component={BuyerDashboard} roles={["buyer"]} />
+          </AppLayout>
+        )}
+      </Route>
+      <Route path="/invoices">
+        {() => (
+          <AppLayout>
+            <PrivateRoute component={SupplierInvoicesPage} roles={["supplier"]} />
+          </AppLayout>
+        )}
+      </Route>
+      <Route path="/offers">
+        {() => (
+          <AppLayout>
+            <PrivateRoute component={BuyerOffersPage} roles={["buyer"]} />
+          </AppLayout>
+        )}
+      </Route>
+      <Route path="/reports">
+        {() => (
+          <AppLayout>
+            <PrivateRoute component={ReportsPage} roles={["supplier", "buyer"]} />
           </AppLayout>
         )}
       </Route>

@@ -70,9 +70,22 @@ const InvoiceUpload = () => {
           
           // Process and upload invoices
           try {
+            if (!user?.id) {
+              toast({
+                variant: 'destructive',
+                title: 'Authentication Error',
+                description: 'Your user ID could not be found. Please try logging out and back in.',
+              });
+              setIsUploading(false);
+              if (fileInputRef.current) fileInputRef.current.value = '';
+              return;
+            }
+            
+            console.log('Uploading invoices with supplier ID:', user.id);
+            
             await apiRequest('POST', '/api/invoices/upload', { 
               invoices,
-              supplierId: user?.id
+              supplierId: user.id
             });
             
             // Invalidate invoices query to refresh data

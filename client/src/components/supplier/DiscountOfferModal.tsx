@@ -132,6 +132,21 @@ const DiscountOfferModal = ({ invoice, isOpen, onClose }: DiscountOfferModalProp
                 {formatPercentage(discountRate)}
               </span>
             </div>
+            
+            <div className="flex flex-wrap gap-2 mt-2">
+              <p className="text-sm text-gray-500 w-full">Suggested rates:</p>
+              {[1.5, 2.0, 2.5, 3.0, 3.5].map(rate => (
+                <Button 
+                  key={rate} 
+                  variant={discountRate === rate ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setDiscountRate(rate)}
+                  className="px-3 py-1 h-8"
+                >
+                  {formatPercentage(rate)}
+                </Button>
+              ))}
+            </div>
           </div>
           
           <div className="bg-gray-50 p-4 rounded-md space-y-2">
