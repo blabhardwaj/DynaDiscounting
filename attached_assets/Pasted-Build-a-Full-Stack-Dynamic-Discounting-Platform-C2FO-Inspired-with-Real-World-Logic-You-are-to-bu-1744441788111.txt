@@ -1,0 +1,138 @@
+Build a Full-Stack Dynamic Discounting Platform (C2FO-Inspired, with Real-World Logic)
+You are to build a fully functional dynamic discounting web platform inspired by C2FO, designed to simulate real-world supply chain finance interactions between Buyers and Suppliers. The platform should allow users to securely manage invoices, propose and accept discount offers, and visualize financial outcomes using discounted cash flow (DCF) logic. The site must be responsive, bug-free, and present clean data with Indian financial formatting.
+
+✅ 1. Authentication & Role Management:
+Full email-based Login & Signup flow.
+
+During signup, users select their role: Supplier or Buyer.
+
+On successful login:
+
+Suppliers are redirected to /dashboard/supplier.
+
+Buyers are redirected to /dashboard/buyer.
+
+Use Supabase Auth or Firebase for authentication.
+
+Secure routing based on role with session persistence.
+
+✅ 2. Supplier Workflow:
+a. Upload Invoices:
+Supplier uploads .csv file with the following fields:
+
+InvoiceID
+
+InvoiceAmount
+
+InvoiceDate (format: dd/mm/yyyy)
+
+DueDate
+
+BuyerName
+
+Status (randomized: pending/completed)
+
+Invoices must be parsed client-side with error handling.
+
+Store invoice data in Supabase or Firebase Firestore.
+
+b. View Invoices Table:
+Display invoice table with filters (by Status, BuyerName).
+
+For invoices with status “pending”, show “Make Discount Offer” button.
+
+c. Submit Discount Offer:
+User selects an invoice and inputs a Discount Rate (via slider or input).
+
+Platform auto-calculates:
+
+ini
+Copy
+Edit
+DiscountedAmount = InvoiceAmount * (1 - DiscountRate)
+DiscountValue = InvoiceAmount - DiscountedAmount
+EarlyPaymentDate = today’s date + 1 business day (simulated)
+Justify and show Discounted Cash Flow (DCF) values for each offer.
+
+User submits → Offer is sent to Buyer’s dashboard.
+
+✅ 3. Buyer Workflow:
+a. View Discount Offers:
+Buyer sees incoming offers in a structured table.
+
+Show: InvoiceID, Supplier Name, Original Amount, Discount Rate, Discounted Amount, Early Payment Date.
+
+Support sorting/filtering by discount rate, supplier, status.
+
+b. Accept/Reject Offers:
+Buyer can Accept or Reject each offer.
+
+Accept → status updated to “Completed” and payment processed (simulated).
+
+Reject → status remains “Pending”; offer archived or ignored.
+
+Optional: Buyer can set auto-approval rules (e.g., auto-accept <2% discount).
+
+✅ 4. DCF-Based Discounting Logic:
+Integrate a simple Discounted Cash Flow (DCF) model:
+
+ini
+Copy
+Edit
+DCF = DiscountedAmount / (1 + r)^t
+Where:
+
+r = assumed discount rate (e.g. 10% annualized → 0.00027 daily)
+
+t = days remaining till due date
+
+Use DCF value to show fair value of cash flow if paid early.
+
+Present DCF calculations visually on invoice or offer cards.
+
+✅ 5. UI, UX & Frontend Quality:
+No blank screens – handle:
+
+CSV upload errors
+
+No data states
+
+Invalid role-based routing
+
+Use toast notifications or modals for:
+
+Invalid file format
+
+Offer submission success/failure
+
+Buyer accept/reject actions
+
+Format all amounts in Indian Rupees (₹) using comma separator (₹12,34,567.89).
+
+Build using React + Tailwind or shadcn/ui components.
+
+📈 6. Graphs & Reporting:
+On both dashboards, show a summary graph (Recharts or Chart.js):
+
+Line/bar chart of offers vs. time
+
+Total early payments received vs offered
+
+Total value of discounts per month
+
+Show basic KPIs at the top:
+
+No. of invoices uploaded
+
+Total discount gained
+
+Avg. accepted discount rate
+
+📦 Optional Enhancements (Time Permitting):
+Admin panel to monitor total platform activity
+
+Supplier view of accepted vs. rejected offers
+
+Email notifications using Supabase triggers
+
+Download invoices + offer history as .csv
