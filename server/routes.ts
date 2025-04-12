@@ -52,9 +52,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all invoices for a supplier
   router.get("/invoices", async (req: Request, res: Response) => {
     try {
-      const supplierId = req.query.supplierId as string | undefined;
+      // Get the supplierId from the query params, or use "supplier1" as a fallback for demo purposes
+      let supplierId = req.query.supplierId as string | undefined;
       if (!supplierId) {
-        return res.status(400).json({ message: "Supplier ID is required" });
+        // For demo purposes, use supplier1 as default
+        supplierId = "supplier1";
+        console.log("Using default supplierId: supplier1");
       }
       
       const invoices = await storage.getInvoicesBySupplier(supplierId);
@@ -216,10 +219,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.get("/kpi/:role", async (req: Request, res: Response) => {
     try {
       const { role } = req.params;
-      const userId = req.query.userId as string | undefined;
+      // Get the userId from the query params, or use a default based on role for demo purposes
+      let userId = req.query.userId as string | undefined;
       
       if (!userId) {
-        return res.status(400).json({ message: "User ID is required" });
+        // For demo purposes, use default IDs
+        userId = role === "supplier" ? "supplier1" : "buyer1";
+        console.log(`Using default ${role} ID: ${userId}`);
       }
       
       if (role === "supplier") {
