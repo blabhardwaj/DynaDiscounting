@@ -1,4 +1,5 @@
 import { pgTable, text, serial, integer, boolean, doublePrecision, timestamp } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -85,3 +86,24 @@ export type DiscountOffer = typeof discountOffers.$inferSelect;
 
 export type InsertAutoApprovalSettings = z.infer<typeof insertAutoApprovalSettingsSchema>;
 export type AutoApprovalSettings = typeof autoApprovalSettings.$inferSelect;
+
+// Define relations
+export const usersRelations = relations(users, ({ many }) => ({
+  invoices: many(invoices),
+  discountOffers: many(discountOffers),
+  autoApprovalSettings: many(autoApprovalSettings),
+}));
+
+export const invoicesRelations = relations(invoices, ({ one, many }) => ({
+  supplier: one(users, { fields: [invoices.supplierId], references: [users.id] }),
+  discountOffers: many(discountOffers),
+}));
+
+export const discountOffersRelations = relations(discountOffers, ({ one }) => ({
+  invoice: one(invoices, { fields: [discountOffers.invoiceId], references: [invoices.id] }),
+  supplier: one(users, { fields: [discountOffers.supplierId], references: [users.id] }),
+}));
+
+export const autoApprovalSettingsRelations = relations(autoApprovalSettings, ({ one }) => ({
+  user: one(users, { fields: [autoApprovalSettings.userId], references: [users.id] }),
+}));

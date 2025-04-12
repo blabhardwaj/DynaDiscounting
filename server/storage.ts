@@ -12,6 +12,7 @@ import {
   type AutoApprovalSettings,
   type InsertAutoApprovalSettings,
 } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -42,50 +43,185 @@ export interface IStorage {
   getUniqueSuppliers(): Promise<string[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private invoices: Map<number, Invoice>;
-  private discountOffers: Map<number, DiscountOffer>;
-  private autoApprovalSettings: Map<string, AutoApprovalSettings>;
-  private nextInvoiceId: number;
-  private nextOfferId: number;
-  private nextSettingsId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.invoices = new Map();
-    this.discountOffers = new Map();
-    this.autoApprovalSettings = new Map();
-    this.nextInvoiceId = 1;
-    this.nextOfferId = 1;
-    this.nextSettingsId = 1;
-    
-    // Add some sample data
-    this.seedData();
+export class DatabaseStorage implements IStorage {
+  // User methods
+  async getUser(id: string): Promise<User | undefined> {
+    const { db } = await import('./db');
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
-  // Seed some initial data for testing
-  private seedData() {
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const { db } = await import('./db');
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const { db } = await import('./db');
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+
+  // Invoice methods
+  async getInvoice(id: number): Promise<Invoice | undefined> {
+    const { db } = await import('./db');
+    const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id));
+    return invoice;
+  }
+
+  async getInvoicesBySupplier(supplierId: string): Promise<Invoice[]> {
+    const { db } = await import('./db');
+    return await db.select().from(invoices).where(eq(invoices.supplierId, supplierId));
+  }
+
+  async createInvoice(insertInvoice: InsertInvoice): Promise<Invoice> {
+    const { db } = await import('./db');
+    const [invoice] = await db.insert(invoices).values(insertInvoice).returning();
+    return invoice;
+  }
+
+  async updateInvoice(id: number, updates: Partial<Invoice>): Promise<Invoice> {
+    const { db } = await import('./db');
+    const [updatedInvoice] = await db
+      .update(invoices)
+      .set(updates)
+      .where(eq(invoices.id, id))
+      .returning();
+    
+    if (!updatedInvoice) {
+      throw new Error(`Invoice with ID ${id} not found`);
+    }
+    
+    return updatedInvoice;
+  }
+
+  // Discount offer methods
+  async getDiscountOffer(id: number): Promise<DiscountOffer | undefined> {
+    const { db } = await import('./db');
+    const [offer] = await db.select().from(discountOffers).where(eq(discountOffers.id, id));
+    return offer;
+  }
+
+  async getPendingDiscountOffers(): Promise<DiscountOffer[]> {
+    const { db } = await import('./db');
+    return await db.select().from(discountOffers).where(eq(discountOffers.status, "pending"));
+  }
+
+  async getAcceptedDiscountOffers(): Promise<DiscountOffer[]> {
+    const { db } = await import('./db');
+    return await db.select().from(discountOffers).where(eq(discountOffers.status, "accepted"));
+  }
+
+  async getDiscountOffersBySupplierId(supplierId: string): Promise<DiscountOffer[]> {
+    const { db } = await import('./db');
+    return await db.select().from(discountOffers).where(eq(discountOffers.supplierId, supplierId));
+  }
+
+  async createDiscountOffer(insertOffer: InsertDiscountOffer): Promise<DiscountOffer> {
+    const { db } = await import('./db');
+    const [offer] = await db.insert(discountOffers).values(insertOffer).returning();
+    return offer;
+  }
+
+  async updateDiscountOfferStatus(id: number, status: string): Promise<DiscountOffer> {
+    const { db } = await import('./db');
+    const [updatedOffer] = await db
+      .update(discountOffers)
+      .set({ status })
+      .where(eq(discountOffers.id, id))
+      .returning();
+    
+    if (!updatedOffer) {
+      throw new Error(`Discount offer with ID ${id} not found`);
+    }
+    
+    return updatedOffer;
+  }
+
+  // Auto approval settings methods
+  async getAutoApprovalSettings(userId: string): Promise<AutoApprovalSettings | undefined> {
+    const { db } = await import('./db');
+    const [settings] = await db
+      .select()
+      .from(autoApprovalSettings)
+      .where(eq(autoApprovalSettings.userId, userId));
+    return settings;
+  }
+
+  async upsertAutoApprovalSettings(insertSettings: InsertAutoApprovalSettings): Promise<AutoApprovalSettings> {
+    const { db } = await import('./db');
+    const existingSettings = await this.getAutoApprovalSettings(insertSettings.userId);
+    
+    if (existingSettings) {
+      // Update existing settings
+      const [updatedSettings] = await db
+        .update(autoApprovalSettings)
+        .set({
+          ...insertSettings,
+          updatedAt: new Date(),
+        })
+        .where(eq(autoApprovalSettings.id, existingSettings.id))
+        .returning();
+      
+      return updatedSettings;
+    } else {
+      // Create new settings
+      const [newSettings] = await db
+        .insert(autoApprovalSettings)
+        .values({
+          ...insertSettings,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+      
+      return newSettings;
+    }
+  }
+
+  // Utility methods
+  async getUniqueBuyers(): Promise<string[]> {
+    const { db } = await import('./db');
+    const result = await db.selectDistinct({ buyerName: invoices.buyerName }).from(invoices);
+    return result.map(r => r.buyerName);
+  }
+
+  async getUniqueSuppliers(): Promise<string[]> {
+    const { db } = await import('./db');
+    const result = await db.selectDistinct({ supplierName: discountOffers.supplierName }).from(discountOffers);
+    return result.map(r => r.supplierName);
+  }
+}
+
+// Add some initial seed data for development
+async function seedDatabase() {
+  const { db } = await import('./db');
+  
+  // Check if there is already data in the users table
+  const existingUsers = await db.select().from(users).limit(1);
+  
+  if (existingUsers.length === 0) {
+    console.log('Seeding database with initial data...');
+    
     // Add sample users
-    const supplierUser: User = {
-      id: "supplier1",
-      email: "supplier@example.com",
-      role: "supplier",
-      username: "supplier1",
-    };
-    
-    const buyerUser: User = {
-      id: "buyer1",
-      email: "buyer@example.com",
-      role: "buyer",
-      username: "buyer1",
-    };
-    
-    this.users.set(supplierUser.id, supplierUser);
-    this.users.set(buyerUser.id, buyerUser);
+    await db.insert(users).values([
+      {
+        id: "supplier1",
+        email: "supplier@example.com",
+        role: "supplier",
+        username: "supplier1",
+      },
+      {
+        id: "buyer1",
+        email: "buyer@example.com",
+        role: "buyer",
+        username: "buyer1",
+      }
+    ]);
     
     // Add sample invoices
-    const sampleInvoices: InsertInvoice[] = [
+    const invoiceResult = await db.insert(invoices).values([
       {
         invoiceId: "INV-001234",
         invoiceAmount: 123456,
@@ -112,22 +248,13 @@ export class MemStorage implements IStorage {
         buyerName: "Acme Corp",
         status: "completed",
         supplierId: "supplier1",
-      },
-    ];
+      }
+    ]).returning();
     
-    sampleInvoices.forEach(invoice => {
-      const id = this.nextInvoiceId++;
-      this.invoices.set(id, {
-        ...invoice,
-        id,
-        createdAt: new Date().toISOString(),
-      });
-    });
-    
-    // Add sample discount offers
-    const sampleOffers: InsertDiscountOffer[] = [
+    // Add sample discount offer
+    await db.insert(discountOffers).values([
       {
-        invoiceId: 3, // The completed invoice
+        invoiceId: invoiceResult[2].id, // The completed invoice
         originalAmount: 378900,
         discountRate: 2.5,
         discountedAmount: 369427.5,
@@ -137,168 +264,15 @@ export class MemStorage implements IStorage {
         status: "accepted",
         supplierId: "supplier1",
         supplierName: "Supplier Company",
-      },
-    ];
+      }
+    ]);
     
-    sampleOffers.forEach(offer => {
-      const id = this.nextOfferId++;
-      this.discountOffers.set(id, {
-        ...offer,
-        id,
-        createdAt: new Date().toISOString(),
-      });
-    });
-  }
-
-  // User methods
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.email === email,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const user: User = { ...insertUser };
-    this.users.set(user.id, user);
-    return user;
-  }
-
-  // Invoice methods
-  async getInvoice(id: number): Promise<Invoice | undefined> {
-    return this.invoices.get(id);
-  }
-
-  async getInvoicesBySupplier(supplierId: string): Promise<Invoice[]> {
-    return Array.from(this.invoices.values()).filter(
-      (invoice) => invoice.supplierId === supplierId,
-    );
-  }
-
-  async createInvoice(insertInvoice: InsertInvoice): Promise<Invoice> {
-    const id = this.nextInvoiceId++;
-    const invoice: Invoice = {
-      ...insertInvoice,
-      id,
-      createdAt: new Date().toISOString(),
-    };
-    this.invoices.set(id, invoice);
-    return invoice;
-  }
-
-  async updateInvoice(id: number, updates: Partial<Invoice>): Promise<Invoice> {
-    const invoice = this.invoices.get(id);
-    if (!invoice) {
-      throw new Error(`Invoice with ID ${id} not found`);
-    }
-    
-    const updatedInvoice = { ...invoice, ...updates };
-    this.invoices.set(id, updatedInvoice);
-    return updatedInvoice;
-  }
-
-  // Discount offer methods
-  async getDiscountOffer(id: number): Promise<DiscountOffer | undefined> {
-    return this.discountOffers.get(id);
-  }
-
-  async getPendingDiscountOffers(): Promise<DiscountOffer[]> {
-    return Array.from(this.discountOffers.values()).filter(
-      (offer) => offer.status === "pending",
-    );
-  }
-
-  async getAcceptedDiscountOffers(): Promise<DiscountOffer[]> {
-    return Array.from(this.discountOffers.values()).filter(
-      (offer) => offer.status === "accepted",
-    );
-  }
-
-  async getDiscountOffersBySupplierId(supplierId: string): Promise<DiscountOffer[]> {
-    return Array.from(this.discountOffers.values()).filter(
-      (offer) => offer.supplierId === supplierId,
-    );
-  }
-
-  async createDiscountOffer(insertOffer: InsertDiscountOffer): Promise<DiscountOffer> {
-    const id = this.nextOfferId++;
-    const offer: DiscountOffer = {
-      ...insertOffer,
-      id,
-      createdAt: new Date().toISOString(),
-    };
-    this.discountOffers.set(id, offer);
-    return offer;
-  }
-
-  async updateDiscountOfferStatus(id: number, status: string): Promise<DiscountOffer> {
-    const offer = this.discountOffers.get(id);
-    if (!offer) {
-      throw new Error(`Discount offer with ID ${id} not found`);
-    }
-    
-    const updatedOffer = { ...offer, status };
-    this.discountOffers.set(id, updatedOffer);
-    return updatedOffer;
-  }
-
-  // Auto approval settings methods
-  async getAutoApprovalSettings(userId: string): Promise<AutoApprovalSettings | undefined> {
-    return Array.from(this.autoApprovalSettings.values()).find(
-      (settings) => settings.userId === userId,
-    );
-  }
-
-  async upsertAutoApprovalSettings(insertSettings: InsertAutoApprovalSettings): Promise<AutoApprovalSettings> {
-    // Check if settings already exist for this user
-    const existingSettings = await this.getAutoApprovalSettings(insertSettings.userId);
-    
-    if (existingSettings) {
-      // Update existing settings
-      const updatedSettings = {
-        ...existingSettings,
-        ...insertSettings,
-        updatedAt: new Date().toISOString(),
-      };
-      this.autoApprovalSettings.set(existingSettings.id, updatedSettings);
-      return updatedSettings;
-    } else {
-      // Create new settings
-      const id = this.nextSettingsId++;
-      const settings: AutoApprovalSettings = {
-        ...insertSettings,
-        id,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      this.autoApprovalSettings.set(id, settings);
-      return settings;
-    }
-  }
-
-  // Utility methods
-  async getUniqueBuyers(): Promise<string[]> {
-    const buyers = new Set<string>();
-    
-    this.invoices.forEach((invoice) => {
-      buyers.add(invoice.buyerName);
-    });
-    
-    return Array.from(buyers);
-  }
-
-  async getUniqueSuppliers(): Promise<string[]> {
-    const suppliers = new Set<string>();
-    
-    this.discountOffers.forEach((offer) => {
-      suppliers.add(offer.supplierName);
-    });
-    
-    return Array.from(suppliers);
+    console.log('Database seeded successfully');
   }
 }
 
-export const storage = new MemStorage();
+// Initialize the storage
+export const storage = new DatabaseStorage();
+
+// Seed the database with initial data
+seedDatabase().catch(console.error);
