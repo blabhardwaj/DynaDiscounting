@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '@/config/supabase';
 import { User, UserRole } from '@/types';
 import { useLocation } from 'wouter';
 
@@ -14,6 +13,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// For demo purposes, we'll use localStorage to simulate auth
+const LOCAL_STORAGE_AUTH_KEY = 'dynamic_discounting_auth';
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole>('supplier');
@@ -26,31 +28,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(true);
       
       try {
-        const { data, error } = await supabase.auth.getSession();
+        // Get stored user from localStorage
+        const storedUser = localStorage.getItem(LOCAL_STORAGE_AUTH_KEY);
         
-        if (error) {
-          console.error('Error getting session:', error);
-          return;
-        }
-        
-        if (data.session) {
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('id, email, role')
-            .eq('id', data.session.user.id)
-            .single();
-            
-          if (userError) {
-            console.error('Error fetching user data:', userError);
-            return;
-          }
-          
-          setUser({
-            id: userData.id,
-            email: userData.email,
-            role: userData.role,
-          });
-          
+        if (storedUser) {
+          const userData = JSON.parse(storedUser) as User;
+          setUser(userData);
           setUserRole(userData.role);
         }
       } catch (error) {
@@ -61,64 +44,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
     
     checkSession();
-    
-    // Set up auth subscription
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('id, email, role')
-          .eq('id', session.user.id)
-          .single();
-          
-        if (userError) {
-          console.error('Error fetching user data:', userError);
-          return;
-        }
-        
-        setUser({
-          id: userData.id,
-          email: userData.email,
-          role: userData.role,
-        });
-        
-        setUserRole(userData.role);
-        setLocation(`/dashboard/${userData.role}`);
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setUserRole('supplier');
-        setLocation('/');
-      }
-    });
-    
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, [setLocation]);
+  }, []);
 
   const login = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // For demo purposes, we'll accept any credentials
+      // In a real app, this would validate against a backend
       
-      if (error) throw error;
+      // Find existing user or create default
+      let userData = null;
       
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id, email, role')
-        .eq('id', data.user.id)
-        .single();
-        
-      if (userError) throw userError;
+      if (email === 'supplier@example.com') {
+        userData = {
+          id: 'supplier1',
+          email: 'supplier@example.com',
+          role: 'supplier' as UserRole,
+        };
+      } else if (email === 'buyer@example.com') {
+        userData = {
+          id: 'buyer1',
+          email: 'buyer@example.com',
+          role: 'buyer' as UserRole,
+        };
+      } else {
+        // Create a new user with supplier role by default
+        userData = {
+          id: `user_${Date.now()}`,
+          email,
+          role: 'supplier' as UserRole,
+        };
+      }
       
-      setUser({
-        id: userData.id,
-        email: userData.email,
-        role: userData.role,
-      });
+      // Store in localStorage
+      localStorage.setItem(LOCAL_STORAGE_AUTH_KEY, JSON.stringify(userData));
       
+      // Update state
+      setUser(userData);
       setUserRole(userData.role);
       setLocation(`/dashboard/${userData.role}`);
     } catch (error) {
@@ -129,26 +90,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signup = async (email: string, password: string, role: UserRole) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
+      // For demo purposes, we'll create a user with the given role
+      const userData = {
+        id: `user_${Date.now()}`,
         email,
-        password,
-      });
+        role,
+      };
       
-      if (error) throw error;
+      // Store in localStorage
+      localStorage.setItem(LOCAL_STORAGE_AUTH_KEY, JSON.stringify(userData));
       
-      // Create user record with role
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert({
-          id: data.user!.id,
-          email,
-          role,
-        });
-        
-      if (profileError) throw profileError;
-      
-      // Auto sign in after signup
-      return login(email, password);
+      // Update state
+      setUser(userData);
+      setUserRole(role);
+      setLocation(`/dashboard/${role}`);
     } catch (error) {
       console.error('Signup error:', error);
       throw error;
@@ -157,9 +112,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      // Clear from localStorage
+      localStorage.removeItem(LOCAL_STORAGE_AUTH_KEY);
       
+      // Update state
       setUser(null);
       setUserRole('supplier');
       setLocation('/');
