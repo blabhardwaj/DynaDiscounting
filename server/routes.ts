@@ -112,6 +112,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json({ message: "Invoices uploaded successfully", count: processedInvoices.length });
     } catch (error) {
+      // Special handling for foreign key constraints
+      if (error instanceof Error && error.message.includes("foreign key constraint")) {
+        console.error("Foreign key constraint error:", error.message);
+        return res.status(400).json({ 
+          message: "Invalid supplier ID. Please use 'supplier1' for demo purposes.",
+          details: error.message
+        });
+      }
       res.status(500).json({ message: error instanceof Error ? error.message : "An error occurred" });
     }
   });

@@ -13,13 +13,16 @@ const SupplierInvoicesPage = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
 
+  // Force using "supplier1" for demo purposes
+  const supplierId = "supplier1";
+  
   const {
     data: invoices = [],
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['/api/invoices', { supplierId: user?.id }],
-    enabled: !!user?.id,
+    queryKey: ['/api/invoices', { supplierId }],
+    enabled: true,
   });
 
   const handleMakeOffer = (invoice: Invoice) => {
