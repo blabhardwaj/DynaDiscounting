@@ -17,7 +17,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const Login = () => {
+const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const { toast } = useToast();
@@ -60,13 +60,17 @@ const Login = () => {
             <FormItem>
               <FormLabel>Email address</FormLabel>
               <FormControl>
-                <Input placeholder="Enter your email" {...field} />
+                <Input
+                  placeholder="Enter your email"
+                  aria-label="Email address"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="password"
@@ -74,13 +78,18 @@ const Login = () => {
             <FormItem>
               <FormLabel>Password</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="Enter your password" {...field} />
+                <Input
+                  type="password"
+                  placeholder="Enter your password"
+                  aria-label="Password"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        
+
         <div className="flex items-center justify-between">
           <FormField
             control={form.control}
@@ -88,21 +97,22 @@ const Login = () => {
             render={({ field }) => (
               <FormItem className="flex flex-row items-center space-x-2 space-y-0">
                 <FormControl>
-                  <Checkbox 
-                    checked={field.value} 
+                  <Checkbox
+                    checked={field.value}
                     onCheckedChange={field.onChange}
+                    aria-label="Remember me"
                   />
                 </FormControl>
                 <FormLabel className="text-sm font-normal">Remember me</FormLabel>
               </FormItem>
             )}
           />
-          
+
           <Button variant="link" className="text-sm p-0 h-auto">
             Forgot password?
           </Button>
         </div>
-        
+
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading ? 'Signing in...' : 'Sign in'}
         </Button>

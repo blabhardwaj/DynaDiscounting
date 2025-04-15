@@ -28,6 +28,7 @@ export const invoices = pgTable("invoices", {
   buyerName: text("buyer_name").notNull(),
   status: text("status").notNull().default("pending"),
   supplierId: text("supplier_id").notNull().references(() => users.id),
+  buyerId: text("supplier_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -39,7 +40,7 @@ export const insertInvoiceSchema = createInsertSchema(invoices).omit({
 // Discount offers table
 export const discountOffers = pgTable("discount_offers", {
   id: serial("id").primaryKey(),
-  invoiceId: integer("invoice_id").notNull().references(() => invoices.id),
+  invoiceId: text("invoice_id").notNull().references(() => invoices.invoiceId),
   originalAmount: doublePrecision("original_amount").notNull(),
   discountRate: doublePrecision("discount_rate").notNull(),
   discountedAmount: doublePrecision("discounted_amount").notNull(),

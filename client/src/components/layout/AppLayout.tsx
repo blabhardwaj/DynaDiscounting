@@ -13,7 +13,11 @@ const AppLayout = ({ children }: AppLayoutProps) => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
+        <div
+          className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"
+          role="status"
+          aria-label="Loading"
+        ></div>
       </div>
     );
   }
@@ -25,9 +29,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar />
-      <main className="flex-1">
-        {children}
-      </main>
+      <main className="flex-1 p-4">{children}</main>
     </div>
   );
 };

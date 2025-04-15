@@ -58,7 +58,7 @@ const Signup = () => {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-6">
         <FormField
           control={form.control}
           name="email"
@@ -72,7 +72,7 @@ const Signup = () => {
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="password"
@@ -86,7 +86,7 @@ const Signup = () => {
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="confirmPassword"
@@ -100,7 +100,7 @@ const Signup = () => {
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="role"
@@ -113,19 +113,25 @@ const Signup = () => {
                   defaultValue={field.value}
                   className="grid grid-cols-2 gap-4 mt-2"
                 >
-                  <FormItem className="flex items-center space-x-2 space-y-0">
+                  <FormItem className="flex items-center space-x-2">
                     <FormControl>
                       <RadioGroupItem value="supplier" id="role-supplier" />
                     </FormControl>
-                    <FormLabel htmlFor="role-supplier" className="flex cursor-pointer items-center justify-center rounded-md border py-3 px-3 text-sm font-medium uppercase sm:flex-1 border-gray-200 text-gray-900 shadow-sm hover:bg-gray-50 flex-grow">
+                    <FormLabel
+                      htmlFor="role-supplier"
+                      className="flex cursor-pointer items-center justify-center rounded-md border py-3 px-3 text-sm font-medium uppercase border-gray-200 text-gray-900 shadow-sm hover:bg-gray-50 flex-grow"
+                    >
                       Supplier
                     </FormLabel>
                   </FormItem>
-                  <FormItem className="flex items-center space-x-2 space-y-0">
+                  <FormItem className="flex items-center space-x-2">
                     <FormControl>
                       <RadioGroupItem value="buyer" id="role-buyer" />
                     </FormControl>
-                    <FormLabel htmlFor="role-buyer" className="flex cursor-pointer items-center justify-center rounded-md border py-3 px-3 text-sm font-medium uppercase sm:flex-1 border-gray-200 text-gray-900 shadow-sm hover:bg-gray-50 flex-grow">
+                    <FormLabel
+                      htmlFor="role-buyer"
+                      className="flex cursor-pointer items-center justify-center rounded-md border py-3 px-3 text-sm font-medium uppercase border-gray-200 text-gray-900 shadow-sm hover:bg-gray-50 flex-grow"
+                    >
                       Buyer
                     </FormLabel>
                   </FormItem>
@@ -135,9 +141,39 @@ const Signup = () => {
             </FormItem>
           )}
         />
-        
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? 'Creating account...' : 'Create Account'}
+
+        <Button
+          type="submit"
+          className="w-full flex items-center justify-center"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <span className="flex items-center space-x-2">
+              <svg
+                className="animate-spin h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8H4z"
+                ></path>
+              </svg>
+              <span>Creating account...</span>
+            </span>
+          ) : (
+            'Create Account'
+          )}
         </Button>
       </form>
     </Form>

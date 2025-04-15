@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -22,32 +22,33 @@ interface DiscountOfferModalProps {
   onClose: () => void;
 }
 
+const SUGGESTED_RATES = [1.5, 2.0, 2.5, 3.0, 3.5];
+const ANNUAL_RATE = 0.10; // 10% annualized
+
 const DiscountOfferModal = ({ invoice, isOpen, onClose }: DiscountOfferModalProps) => {
   const [discountRate, setDiscountRate] = useState(2.0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
-  
-  // Calculate discount values
-  const originalAmount = invoice.invoiceAmount;
-  const discountValue = originalAmount * (discountRate / 100);
-  const discountedAmount = originalAmount - discountValue;
-  
-  // Early payment date (1 business day from today)
-  const earlyPaymentDate = addBusinessDays(new Date(), 1);
-  
-  // Calculate DCF
-  const dueDate = parseDate(invoice.dueDate);
-  const daysRemaining = getDaysBetweenDates(earlyPaymentDate, dueDate);
-  const annualRate = 0.10; // 10% annualized
-  const dcfValue = calculateDCF(discountedAmount, annualRate, daysRemaining);
-  
+
+  const earlyPaymentDate = useMemo(() => addBusinessDays(new Date(), 1), []);
+  const dueDate = useMemo(() => parseDate(invoice.dueDate), [invoice.dueDate]);
+  const daysRemaining = useMemo(() => getDaysBetweenDates(earlyPaymentDate, dueDate), [earlyPaymentDate, dueDate]);
+
+  const { originalAmount, discountValue, discountedAmount, dcfValue } = useMemo(() => {
+    const originalAmount = invoice.invoiceAmount;
+    const discountValue = originalAmount * (discountRate / 100);
+    const discountedAmount = originalAmount - discountValue;
+    const dcfValue = calculateDCF(discountedAmount, ANNUAL_RATE, daysRemaining);
+
+    return { originalAmount, discountValue, discountedAmount, dcfValue };
+  }, [invoice.invoiceAmount, discountRate, daysRemaining]);
+
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    
+
     try {
-      // Force using "supplier1" for demo purposes since that's what exists in our database
-      const supplierId = "supplier1";
+      const supplierId = "supplier1"; // Demo supplier
       const supplierName = "Demo Supplier";
 
       const offerData = {
@@ -61,22 +62,20 @@ const DiscountOfferModal = ({ invoice, isOpen, onClose }: DiscountOfferModalProp
         supplierId,
         supplierName,
       };
-      
+
       await apiRequest('POST', '/api/discount-offers', offerData);
-      
-      // Update invoice status
+
       await apiRequest('PATCH', `/api/invoices/${invoice.id}`, {
-        status: 'pending_approval'
+        status: 'pending_approval',
       });
-      
-      // Refresh data
+
       queryClient.invalidateQueries({ queryKey: ['/api/invoices'] });
-      
+
       toast({
         title: 'Success',
         description: 'Discount offer submitted successfully.',
       });
-      
+
       onClose();
     } catch (error) {
       toast({
@@ -88,36 +87,17 @@ const DiscountOfferModal = ({ invoice, isOpen, onClose }: DiscountOfferModalProp
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Make Discount Offer</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
-          <div className="bg-gray-50 p-4 rounded-md">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-sm text-gray-500">Invoice ID</p>
-                <p className="font-medium">{invoice.invoiceId}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Buyer</p>
-                <p className="font-medium">{invoice.buyerName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Invoice Amount</p>
-                <p className="font-medium indian-currency">{formatIndianCurrency(invoice.invoiceAmount)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Due Date</p>
-                <p className="font-medium">{formatDate(invoice.dueDate)}</p>
-              </div>
-            </div>
-          </div>
-          
+          <InvoiceDetails invoice={invoice} />
+
           <div>
             <label htmlFor="discount-rate" className="block text-sm font-medium text-gray-700 mb-1">
               Discount Rate (%)
@@ -136,13 +116,13 @@ const DiscountOfferModal = ({ invoice, isOpen, onClose }: DiscountOfferModalProp
                 {formatPercentage(discountRate)}
               </span>
             </div>
-            
+
             <div className="flex flex-wrap gap-2 mt-2">
               <p className="text-sm text-gray-500 w-full">Suggested rates:</p>
-              {[1.5, 2.0, 2.5, 3.0, 3.5].map(rate => (
-                <Button 
-                  key={rate} 
-                  variant={discountRate === rate ? "default" : "outline"} 
+              {SUGGESTED_RATES.map((rate) => (
+                <Button
+                  key={rate}
+                  variant={discountRate === rate ? "default" : "outline"}
                   size="sm"
                   onClick={() => setDiscountRate(rate)}
                   className="px-3 py-1 h-8"
@@ -152,38 +132,21 @@ const DiscountOfferModal = ({ invoice, isOpen, onClose }: DiscountOfferModalProp
               ))}
             </div>
           </div>
-          
-          <div className="bg-gray-50 p-4 rounded-md space-y-2">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Original Amount:</span>
-              <span className="text-sm font-medium indian-currency">{formatIndianCurrency(originalAmount)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Discount Value:</span>
-              <span className="text-sm font-medium indian-currency">{formatIndianCurrency(discountValue)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Discounted Amount:</span>
-              <span className="text-sm font-medium indian-currency">{formatIndianCurrency(discountedAmount)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Early Payment Date:</span>
-              <span className="text-sm font-medium">{formatDate(earlyPaymentDate.toISOString())}</span>
-            </div>
-            <div className="pt-2 border-t border-gray-200 mt-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-600">DCF Value:</span>
-                <span className="text-sm font-medium indian-currency">{formatIndianCurrency(dcfValue)}</span>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Based on 10% annualized discount rate for {daysRemaining} days
-              </p>
-            </div>
-          </div>
+
+          <DiscountSummary
+            originalAmount={originalAmount}
+            discountValue={discountValue}
+            discountedAmount={discountedAmount}
+            earlyPaymentDate={earlyPaymentDate}
+            dcfValue={dcfValue}
+            daysRemaining={daysRemaining}
+          />
         </div>
-        
+
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? 'Submitting...' : 'Submit Discount Offer'}
           </Button>
@@ -192,5 +155,62 @@ const DiscountOfferModal = ({ invoice, isOpen, onClose }: DiscountOfferModalProp
     </Dialog>
   );
 };
+
+const InvoiceDetails = ({ invoice }: { invoice: Invoice }) => (
+  <div className="bg-gray-50 p-4 rounded-md">
+    <div className="grid grid-cols-2 gap-3">
+      <DetailItem label="Invoice ID" value={invoice.invoiceId} />
+      <DetailItem label="Buyer" value={invoice.buyerName} />
+      <DetailItem label="Invoice Amount" value={formatIndianCurrency(invoice.invoiceAmount)} />
+      <DetailItem label="Due Date" value={formatDate(invoice.dueDate)} />
+    </div>
+  </div>
+);
+
+const DetailItem = ({ label, value }: { label: string; value: string }) => (
+  <div>
+    <p className="text-sm text-gray-500">{label}</p>
+    <p className="font-medium">{value}</p>
+  </div>
+);
+
+const DiscountSummary = ({
+  originalAmount,
+  discountValue,
+  discountedAmount,
+  earlyPaymentDate,
+  dcfValue,
+  daysRemaining,
+}: {
+  originalAmount: number;
+  discountValue: number;
+  discountedAmount: number;
+  earlyPaymentDate: Date;
+  dcfValue: number;
+  daysRemaining: number;
+}) => (
+  <div className="bg-gray-50 p-4 rounded-md space-y-2">
+    <SummaryItem label="Original Amount" value={formatIndianCurrency(originalAmount)} />
+    <SummaryItem label="Discount Value" value={formatIndianCurrency(discountValue)} />
+    <SummaryItem label="Discounted Amount" value={formatIndianCurrency(discountedAmount)} />
+    <SummaryItem label="Early Payment Date" value={formatDate(earlyPaymentDate.toISOString())} />
+    <div className="pt-2 border-t border-gray-200 mt-2">
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-medium text-gray-600">DCF Value:</span>
+        <span className="text-sm font-medium indian-currency">{formatIndianCurrency(dcfValue)}</span>
+      </div>
+      <p className="text-xs text-gray-500 mt-1">
+        Based on 10% annualized discount rate for {daysRemaining} days
+      </p>
+    </div>
+  </div>
+);
+
+const SummaryItem = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex justify-between">
+    <span className="text-sm text-gray-600">{label}:</span>
+    <span className="text-sm font-medium">{value}</span>
+  </div>
+);
 
 export default DiscountOfferModal;

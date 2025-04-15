@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -47,8 +47,8 @@ const AutoApprovalSettings = () => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       enabled: settings?.enabled || false,
-      maxDiscountRate: settings?.maxDiscountRate?.toString() || "2.5",
-      maxAmount: settings?.maxAmount?.toString() || "100000",
+      maxDiscountRate: settings?.maxDiscountRate || 2.5,
+      maxAmount: settings?.maxAmount || 100000,
     },
   });
   
@@ -84,8 +84,8 @@ const AutoApprovalSettings = () => {
   if (!isLoading && settings && !form.formState.isDirty) {
     form.reset({
       enabled: settings.enabled,
-      maxDiscountRate: settings.maxDiscountRate.toString(),
-      maxAmount: settings.maxAmount.toString(),
+      maxDiscountRate: settings.maxDiscountRate,
+      maxAmount: settings.maxAmount,
     });
   }
   

@@ -31,50 +31,37 @@ import DiscountOfferModal from './DiscountOfferModal';
 import { useAuth } from '@/contexts/AuthContext';
 
 const InvoiceTable = () => {
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [buyerFilter, setBuyerFilter] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [buyerFilter, setBuyerFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const { user } = useAuth();
-  
+
   const { data: invoices = [], isLoading } = useQuery<Invoice[]>({
     queryKey: ['/api/invoices', user?.id],
   });
-  
+
   const { data: buyers = [] } = useQuery<string[]>({
     queryKey: ['/api/buyers'],
   });
-  
-  // Filter invoices based on selected filters
-  const filteredInvoices = invoices.filter(invoice => {
-    // Status filter
-    if (statusFilter !== 'all' && invoice.status !== statusFilter) {
-      return false;
-    }
-    
-    // Buyer filter
-    if (buyerFilter !== 'all' && invoice.buyerName !== buyerFilter) {
-      return false;
-    }
-    
-    // Search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        invoice.invoiceId.toLowerCase().includes(query) ||
-        invoice.buyerName.toLowerCase().includes(query)
-      );
-    }
-    
-    return true;
+
+  const filteredInvoices = invoices.filter((invoice) => {
+    const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
+    const matchesBuyer = buyerFilter === 'all' || invoice.buyerName === buyerFilter;
+    const matchesSearch = searchQuery
+      ? invoice.invoiceId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        invoice.buyerName.toLowerCase().includes(searchQuery.toLowerCase())
+      : true;
+
+    return matchesStatus && matchesBuyer && matchesSearch;
   });
-  
+
   const handleMakeOffer = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
     setIsModalOpen(true);
   };
-  
+
   return (
     <>
       <Card className="overflow-hidden mb-8">
@@ -82,11 +69,8 @@ const InvoiceTable = () => {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <CardTitle>Your Invoices</CardTitle>
             <div className="mt-4 md:mt-0 flex flex-col sm:flex-row gap-3">
-              <Select 
-                value={statusFilter} 
-                onValueChange={setStatusFilter}
-              >
-                <SelectTrigger className="w-[180px]">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px]" aria-label="Filter by status">
                   <SelectValue placeholder="All Statuses" />
                 </SelectTrigger>
                 <SelectContent>
@@ -95,22 +79,21 @@ const InvoiceTable = () => {
                   <SelectItem value="completed">Completed</SelectItem>
                 </SelectContent>
               </Select>
-              
-              <Select 
-                value={buyerFilter} 
-                onValueChange={setBuyerFilter}
-              >
-                <SelectTrigger className="w-[180px]">
+
+              <Select value={buyerFilter} onValueChange={setBuyerFilter}>
+                <SelectTrigger className="w-[180px]" aria-label="Filter by buyer">
                   <SelectValue placeholder="All Buyers" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Buyers</SelectItem>
-                  {buyers.map(buyer => (
-                    <SelectItem key={buyer} value={buyer}>{buyer}</SelectItem>
+                  {buyers.map((buyer) => (
+                    <SelectItem key={buyer} value={buyer}>
+                      {buyer}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              
+
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
                 <Input
@@ -118,12 +101,13 @@ const InvoiceTable = () => {
                   className="pl-8"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  aria-label="Search invoices"
                 />
               </div>
             </div>
           </div>
         </CardHeader>
-        
+
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -157,18 +141,23 @@ const InvoiceTable = () => {
                   <TableRow key={invoice.id}>
                     <TableCell className="font-medium">{invoice.invoiceId}</TableCell>
                     <TableCell>{invoice.buyerName}</TableCell>
-                    <TableCell className="indian-currency">{formatIndianCurrency(invoice.invoiceAmount)}</TableCell>
+                    <TableCell className="indian-currency">
+                      {formatIndianCurrency(invoice.invoiceAmount)}
+                    </TableCell>
                     <TableCell>{formatDate(invoice.invoiceDate)}</TableCell>
                     <TableCell>{formatDate(invoice.dueDate)}</TableCell>
                     <TableCell>
-                      <Badge variant={invoice.status === 'pending' ? 'warning' : 'success'} className="capitalize">
+                      <Badge
+                        variant={invoice.status === 'pending' ? 'destructive' : 'default'}
+                        className="capitalize"
+                      >
                         {invoice.status}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       {invoice.status === 'pending' ? (
-                        <Button 
-                          variant="link" 
+                        <Button
+                          variant="link"
                           onClick={() => handleMakeOffer(invoice)}
                           className="text-primary hover:text-primary/80"
                         >
@@ -184,25 +173,31 @@ const InvoiceTable = () => {
             </TableBody>
           </Table>
         </div>
-        
+
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-700">
-              Showing <span className="font-medium">1</span> to <span className="font-medium">{filteredInvoices.length}</span> of <span className="font-medium">{invoices.length}</span> invoices
+              Showing <span className="font-medium">1</span> to{' '}
+              <span className="font-medium">{filteredInvoices.length}</span> of{' '}
+              <span className="font-medium">{invoices.length}</span> invoices
             </div>
             <div className="flex space-x-2">
-              <Button variant="outline" size="sm" disabled>Previous</Button>
-              <Button variant="outline" size="sm" disabled>Next</Button>
+              <Button variant="outline" size="sm" disabled>
+                Previous
+              </Button>
+              <Button variant="outline" size="sm" disabled>
+                Next
+              </Button>
             </div>
           </div>
         </div>
       </Card>
-      
+
       {isModalOpen && selectedInvoice && (
-        <DiscountOfferModal 
-          invoice={selectedInvoice} 
-          isOpen={isModalOpen} 
-          onClose={() => setIsModalOpen(false)} 
+        <DiscountOfferModal
+          invoice={selectedInvoice}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
         />
       )}
     </>

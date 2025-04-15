@@ -230,6 +230,7 @@ async function seedDatabase() {
         buyerName: "Acme Corp",
         status: "pending",
         supplierId: "supplier1",
+        buyerId: "buyer1",
       },
       {
         invoiceId: "INV-001235",
@@ -239,6 +240,7 @@ async function seedDatabase() {
         buyerName: "Globex",
         status: "pending",
         supplierId: "supplier1",
+        buyerId: "buyer1",
       },
       {
         invoiceId: "INV-001236",
@@ -248,6 +250,7 @@ async function seedDatabase() {
         buyerName: "Acme Corp",
         status: "completed",
         supplierId: "supplier1",
+        buyerId: "buyer1",
       }
     ]).returning();
     

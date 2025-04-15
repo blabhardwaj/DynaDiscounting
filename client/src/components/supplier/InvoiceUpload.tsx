@@ -5,147 +5,120 @@ import { useToast } from '@/hooks/use-toast';
 import { UploadCloud } from 'lucide-react';
 import { InvoiceCSV } from '@/types';
 import Papa from 'papaparse';
-import { apiRequest } from '@/lib/queryClient';
-import { queryClient } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const REQUIRED_COLUMNS = ['InvoiceID', 'InvoiceAmount', 'InvoiceDate', 'DueDate', 'BuyerName', 'Status'];
 
 const InvoiceUpload = () => {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
-  
+
+  const resetFileInput = () => {
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const showErrorToast = (title: string, description: string) => {
+    toast({ variant: 'destructive', title, description });
+  };
+
+  const validateFile = (file: File): boolean => {
+    if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+      showErrorToast('Invalid file format', 'Please upload a CSV file.');
+      return false;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      showErrorToast('File too large', 'Maximum file size is 10MB.');
+      return false;
+    }
+
+    return true;
+  };
+
+  const validateCSVStructure = (invoices: InvoiceCSV[]): boolean => {
+    const headers = Object.keys(invoices[0] || {});
+    const missingColumns = REQUIRED_COLUMNS.filter(col => !headers.includes(col));
+
+    if (missingColumns.length > 0) {
+      showErrorToast('Invalid CSV format', `Missing columns: ${missingColumns.join(', ')}`);
+      return false;
+    }
+
+    return true;
+  };
+
+  const uploadInvoices = async (invoices: InvoiceCSV[]) => {
+    if (!user?.id) {
+      showErrorToast('Authentication Error', 'Your user ID could not be found. Please try logging out and back in.');
+      return;
+    }
+
+    try {
+      const supplierId = "supplier1"; // Hardcoded supplier ID for demo purposes
+      await apiRequest('POST', '/api/invoices/upload', { invoices, supplierId });
+
+      queryClient.invalidateQueries({ queryKey: ['/api/invoices'] });
+
+      toast({
+        title: 'Invoices uploaded',
+        description: `Successfully uploaded ${invoices.length} invoices.`,
+      });
+    } catch (error) {
+      showErrorToast('Upload failed', error instanceof Error ? error.message : 'Failed to upload invoices.');
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    // Check file type
-    if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid file format',
-        description: 'Please upload a CSV file.',
-      });
-      if (fileInputRef.current) fileInputRef.current.value = '';
+
+    if (!validateFile(file)) {
+      resetFileInput();
       return;
     }
-    
-    // Check file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        variant: 'destructive',
-        title: 'File too large',
-        description: 'Maximum file size is 10MB.',
-      });
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-    
+
     setIsUploading(true);
-    
-    try {
-      // Parse CSV file
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        dynamicTyping: true, // Try to automatically convert numeric values
-        complete: async (results) => {
-          console.log("CSV parse results:", results);
-          const invoices = results.data as InvoiceCSV[];
-          
-          // Validate CSV structure
-          const requiredColumns = ['InvoiceID', 'InvoiceAmount', 'InvoiceDate', 'DueDate', 'BuyerName', 'Status'];
-          const headers = Object.keys(invoices[0] || {});
-          
-          const missingColumns = requiredColumns.filter(col => !headers.includes(col));
-          
-          if (missingColumns.length > 0) {
-            toast({
-              variant: 'destructive',
-              title: 'Invalid CSV format',
-              description: `Missing columns: ${missingColumns.join(', ')}`,
-            });
-            setIsUploading(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
-            return;
-          }
-          
-          // Process and upload invoices
-          try {
-            if (!user?.id) {
-              toast({
-                variant: 'destructive',
-                title: 'Authentication Error',
-                description: 'Your user ID could not be found. Please try logging out and back in.',
-              });
-              setIsUploading(false);
-              if (fileInputRef.current) fileInputRef.current.value = '';
-              return;
-            }
-            
-            // Force using "supplier1" for demo purposes since that's what exists in our database
-            // In a real app, we would properly create users in the database when they sign up
-            const supplierId = "supplier1";
-            
-            console.log('Uploading invoices with supplier ID:', supplierId);
-            
-            await apiRequest('POST', '/api/invoices/upload', { 
-              invoices,
-              supplierId
-            });
-            
-            // Invalidate invoices query to refresh data
-            queryClient.invalidateQueries({ queryKey: ['/api/invoices'] });
-            
-            toast({
-              title: 'Invoices uploaded',
-              description: `Successfully uploaded ${invoices.length} invoices.`,
-            });
-          } catch (error) {
-            toast({
-              variant: 'destructive',
-              title: 'Upload failed',
-              description: error instanceof Error ? error.message : 'Failed to upload invoices.',
-            });
-          }
-          
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      dynamicTyping: true,
+      complete: async (results) => {
+        const invoices = results.data as InvoiceCSV[];
+
+        if (!validateCSVStructure(invoices)) {
           setIsUploading(false);
-          if (fileInputRef.current) fileInputRef.current.value = '';
-        },
-        error: (error) => {
-          toast({
-            variant: 'destructive',
-            title: 'CSV parsing failed',
-            description: error.message,
-          });
-          setIsUploading(false);
-          if (fileInputRef.current) fileInputRef.current.value = '';
+          resetFileInput();
+          return;
         }
-      });
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error processing file',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
-      });
-      setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
+
+        await uploadInvoices(invoices);
+        setIsUploading(false);
+        resetFileInput();
+      },
+      error: (error) => {
+        showErrorToast('CSV parsing failed', error.message);
+        setIsUploading(false);
+        resetFileInput();
+      },
+    });
   };
-  
+
   const handleUploadClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
+    fileInputRef.current?.click();
   };
-  
+
   return (
     <Card className="mb-8">
       <CardHeader>
         <CardTitle>Upload Invoices</CardTitle>
       </CardHeader>
       <CardContent>
-        <div 
+        <div
           className="flex items-center justify-center w-full cursor-pointer"
           onClick={handleUploadClick}
         >
@@ -165,11 +138,11 @@ const InvoiceUpload = () => {
                 </div>
               )}
             </div>
-            <input 
+            <input
               ref={fileInputRef}
-              type="file" 
-              className="hidden" 
-              accept=".csv" 
+              type="file"
+              className="hidden"
+              accept=".csv"
               onChange={handleFileChange}
               disabled={isUploading}
             />

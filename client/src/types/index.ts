@@ -20,7 +20,7 @@ export interface Invoice {
 
 export interface DiscountOffer {
   id: number;
-  invoiceId: number;
+  invoiceId: string;
   invoice: Invoice;
   originalAmount: number;
   discountRate: number;
