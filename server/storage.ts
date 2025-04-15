@@ -257,7 +257,7 @@ async function seedDatabase() {
     // Add sample discount offer
     await db.insert(discountOffers).values([
       {
-        invoiceId: invoiceResult[2].id, // The completed invoice
+        invoiceId: String(invoiceResult[2].id), // Convert to string
         originalAmount: 378900,
         discountRate: 2.5,
         discountedAmount: 369427.5,
